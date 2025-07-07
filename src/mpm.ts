@@ -78,30 +78,77 @@ export class MPM {
   particleToGrid() {
     for (let i = 0; i < this.num_particles; i++) {
       const p = this.particles[i];
-      const cell_idx = new Vector2(Math.floor(p.x.x * num_grid), Math.floor(p.x.y * num_grid));
-      const cell_diff = p.x.subtract(cell_idx).subtract(new Vector2(0.5, 0.5));
 
-      if (cell_idx.x < 0 || cell_idx.x >= num_grid || cell_idx.y < 0 || cell_idx.y >= num_grid) continue;
+      // Discrete base cell index (bottom-left corner)
+      const base_x = Math.floor(p.x.x);
+      const base_y = Math.floor(p.x.y);
 
-      const index = cell_idx.y * num_grid + cell_idx.x;
-      const cell = this.cells[index];
+      // Offset from base cell center
+      const diff_x = p.x.x - base_x - 0.5;
+      const diff_y = p.x.y - base_y - 0.5;
 
-      cell.v.addInPlace(p.v.scale(p.mass));
-      cell.mass += p.mass;
+      // Quadratic B-spline weights
+      const weight = (x: number) => [
+        0.5 * (0.5 - x) ** 2,
+        0.75 - x ** 2,
+        0.5 * (0.5 + x) ** 2
+      ];
+
+      const [wx0, wx1, wx2] = weight(diff_x);
+      const [wy0, wy1, wy2] = weight(diff_y);
+
+      const weights_x = [wx0, wx1, wx2];
+      const weights_y = [wy0, wy1, wy2];
+
+      for (let gx = 0; gx < 3; gx++) {
+        for (let gy = 0; gy < 3; gy++) {
+          const weight = weights_x[gx] * weights_y[gy];
+
+          const cell_x = base_x - 1 + gx;
+          const cell_y = base_y - 1 + gy;
+
+          // Boundary check
+          if (cell_x < 0 || cell_x >= num_grid || cell_y < 0 || cell_y >= num_grid) {
+            continue;
+          }
+
+          const cell_index = cell_x * num_grid + cell_y;
+
+          const mass_contrib = weight * p.mass;
+
+          // Affine term Q = C * dist
+          this.cells[cell_index].mass += mass_contrib;
+          this.cells[cell_index].v.x += mass_contrib * p.v.x;
+          this.cells[cell_index].v.y += mass_contrib * p.v.y;
+        }
+      }
     }
   }
 
+
   updateGrid() {
-    // Placeholder for the grid update function
+    for (let i = 0; i < num_cells; i++) {
+      if (this.cells[i].mass === 0) continue;
+      this.cells[i].v.scaleInPlace(1.0 / this.cells[i].mass);
+      this.cells[i].v.addInPlace(new Vector2(0, gravity * dt));
+      // Apply boundary conditions
+      const cell_x = Math.floor(i / num_grid);
+      const cell_y = i % num_grid;
+      if (cell_x < 3 || cell_x >= num_grid - 3 || cell_y < 3 || cell_y >= num_grid - 3) {
+        // Reflective boundary condition
+        if (cell_x < 3 || cell_x >= num_grid - 3) {
+          this.cells[i].v.x *= -1;
+        }
+        if (cell_y < 3 || cell_y >= num_grid - 3) {
+          this.cells[i].v.y *= -1;
+        }
+      }
+    }
   }
 
   gridToParticle() {
     // Placeholder for the grid to particle transfer function
   }
-
-
-
-
 
   step() {
     this.resetGrid();
