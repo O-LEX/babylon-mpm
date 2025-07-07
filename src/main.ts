@@ -74,26 +74,27 @@ function updateParticles(mpm: MPM, particleInstances: InstancedMesh[]) {
         const particle = mpm.particles[i];
         const instance = particleInstances[i];
         
-        // Scale particle positions to scene coordinates (0-1 range to -5 to 5 range)
-        const sceneX = (particle.x.x - 0.5) * 10;
-        const sceneY = (particle.x.y - 0.5) * 10;
-        const sceneZ = particle.x.z;
+        // Scale particle positions to scene coordinates (grid coordinates to -5 to 5 range)
+        // Grid is 64x64, so normalize by dividing by 64, then scale to -5 to 5
+        const sceneX = (particle.x.x / 64 - 0.5) * 10;
+        const sceneY = (particle.x.y / 64 - 0.5) * 10;
+        const sceneZ = 0;
         
         instance.position.set(sceneX, sceneY, sceneZ);
     }
 }
 
-function createGridWalls(scene: Scene, mpm: MPM) {
+function createGridWalls(scene: Scene) {
     const wallMaterial = new StandardMaterial("wallMaterial", scene);
     wallMaterial.diffuseColor = Color3.Red();
     wallMaterial.emissiveColor = Color3.Red();
     
-    // Calculate wall positions based on grid boundary conditions
-    // Boundary is at grid position 3 and gridSize-3
-    const leftWallPos = (3 / mpm.dx - 0.5) * 10;
-    const rightWallPos = ((mpm.dx - 3) / mpm.dx - 0.5) * 10;
-    const bottomWallPos = (3 / mpm.dx - 0.5) * 10;
-    const topWallPos = ((mpm.dx - 3) / mpm.dx - 0.5) * 10;
+    // Calculate wall positions based on grid boundary (64x64 grid)
+    // Boundary is at grid position 3 and gridSize-3 (3 and 61)
+    const leftWallPos = (3 / 64 - 0.5) * 10;
+    const rightWallPos = (61 / 64 - 0.5) * 10;
+    const bottomWallPos = (3 / 64 - 0.5) * 10;
+    const topWallPos = (61 / 64 - 0.5) * 10;
     
     // Create wall lines using thin boxes
     const wallThickness = 0.05;
@@ -148,14 +149,14 @@ function main() {
     const engine = new Engine(canvas, true);
     const scene = createScene(canvas, engine);
 
-    const mpm = new MPM(64, 1000);
-    const { baseSphere, particleInstances } = createParticleSystem(scene, mpm);
+    const mpm = new MPM();
+    const { particleInstances } = createParticleSystem(scene, mpm);
     
     // Create visible grid walls
-    createGridWalls(scene, mpm);
+    createGridWalls(scene);
 
     engine.runRenderLoop(() => {
-        mpm.step(0.016);
+        mpm.step();
         updateParticles(mpm, particleInstances);
         scene.render();
     });
