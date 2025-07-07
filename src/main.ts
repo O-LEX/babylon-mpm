@@ -75,9 +75,9 @@ function updateParticles(mpm: MPM, particleInstances: InstancedMesh[]) {
         const instance = particleInstances[i];
         
         // Scale particle positions to scene coordinates (0-1 range to -5 to 5 range)
-        const sceneX = (particle.pos.x - 0.5) * 10;
-        const sceneY = (particle.pos.y - 0.5) * 10;
-        const sceneZ = particle.pos.z;
+        const sceneX = (particle.x.x - 0.5) * 10;
+        const sceneY = (particle.x.y - 0.5) * 10;
+        const sceneZ = particle.x.z;
         
         instance.position.set(sceneX, sceneY, sceneZ);
     }
